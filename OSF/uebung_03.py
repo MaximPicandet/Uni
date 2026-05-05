@@ -60,7 +60,7 @@ def optischerWeg(file):
     
     n = 1 + (nTrocken - 1) + (nFeucht - 1)
     
-    ds = np.empty(data[:,0].size);
+    ds = np.empty(data[:,0].size)
     
     ds[1:-1] = (data[2:,0] - data[:-2,0]) / 2
     ds[0] = data[1,0] - data[0,0]
@@ -78,10 +78,57 @@ def optischerWeg(file):
     zenithDelayTrocken = Ltrocken - data[-1,0]
     zenithDelayFeucht = Lfeucht - data[-1,0]
     return Result(zenithDelay, zenithDelayTrocken, zenithDelayFeucht, data[-1,0])
+
+def optischerWeg_trapez(file):
+    """
+    Parameters
+    ----------
+    file : str
+        PATH to data file, relative or absolute. Must be a csv-file with four
+        columns: [0] height, [1] pressure, [2] temperature, [3] vapor pressure.
+        Delimiter must be a comma ",". First row will be skipped.
+
+    Returns
+    -------
+    Result object with
+        zenithDelay : float
+        zenithDelayTrocken : float
+        zenithDelayFeucht : float
+        truePath : float
+    """
+    
+    data = np.loadtxt(file, delimiter=",", skiprows=1)
+    
+    nTrocken = 1 + 77.6e-8 * data[:,1] / data[:,2]
+    nFeucht = 1 + (64.8e-8 + 3.776e-3 / data[:,2]) * data[:,3] / data[:,2]
+    
+    n = 1 + (nTrocken - 1) + (nFeucht - 1)
+    
+    ds = (data[2:,0] - data[:-2,0]) # central differences for non-edge points
+    
+    L = 0.5 * (n[0] * (data[1,0] - data[0,0]) +
+               n[-1] * (data[-1,0] - data[-2,0]) +
+               (n[1:-1] * ds).sum())
+    
+    Ltrocken = 0.5 * (nTrocken[0] * (data[1,0] - data[0,0]) +
+                      nTrocken[-1] * (data[-1,0] - data[-2,0]) +
+                      (nTrocken[1:-1] * ds).sum())
+    
+    Lfeucht = 0.5 * (nFeucht[0] * (data[1,0] - data[0,0]) +
+                     nFeucht[-1] * (data[-1,0] - data[-2,0]) +
+                     (nFeucht[1:-1] * ds).sum())
+    
+    zenithDelay = L - data[-1,0]
+    zenithDelayTrocken = Ltrocken - data[-1,0]
+    zenithDelayFeucht = Lfeucht - data[-1,0]
+    return Result(zenithDelay, zenithDelayTrocken, zenithDelayFeucht, data[-1,0])
     
 
 fileTropisch = "../Übungen/uebung_03_Daten_tropisch.dat"
 fileSubarktisch = "../Übungen/uebung_03_Daten_subarktischer-winter.dat"
 
-resultTropisch = optischerWeg(fileTropisch)
-resultSubarktisch = optischerWeg(fileSubarktisch)
+resultTropischNaiv = optischerWeg(fileTropisch)
+resultSubarktischNaiv = optischerWeg(fileSubarktisch)
+
+resultTropischTrapez = optischerWeg_trapez(fileTropisch)
+resultSubarktischTrapez = optischerWeg_trapez(fileSubarktisch)
